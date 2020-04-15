@@ -86,7 +86,7 @@ def load_counts(class_counts_file):
 def read_opts():
     parser = OptionParser()
     parser.add_option("--cfg")  # Mandatory
-    (options, args) = parser.parse_args()
+    options, args = parser.parse_args()
 
     cfg_file = options.cfg
     Config = ConfigParser.ConfigParser()
