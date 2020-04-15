@@ -8,7 +8,7 @@ def dump_chunk(name, scp, fea_opts, lab_folder, lab_opts, left, right):
         scp, fea_opts, lab_folder, lab_opts,
         left, right)
     np.savez(f'dataset_{name}.npz',
-             names=names, fea=set, lab=lab, end_index=end_index)
+             names=names, fea=fea, lab=lab, end_index=end_index)
 
 
 def dump_features(options):
