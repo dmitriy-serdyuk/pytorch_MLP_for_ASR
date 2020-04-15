@@ -1,5 +1,5 @@
-out_folder=TIMIT_MLP_mfcc
-device=cuda:0
+out_folder='TIMIT_MLP_mfcc'
+device='cuda:0'
 seed=1234
 
 [data]
@@ -13,7 +13,7 @@ fea_scp=[
     '$TIMIT_MLP/splits_fea/train_split.001',
     '$TIMIT_MLP/splits_fea/train_split.002',
     '$TIMIT_MLP/splits_fea/train_split.003',
-    '$TIMIT_MLP/splits_fea/train_split.004]
+    '$TIMIT_MLP/splits_fea/train_split.004']
 fea_opts='apply-cmvn --utt2spk=ark:$KALDI_ROOT/egs/timit/s5/data/train/utt2spk  ark:$TIMIT_MLP/splits_fea/train_cmvn_speaker.ark ark:- ark:- | add-deltas --delta-order=2 ark:- ark:- |'
 lab_folder='$KALDI_ROOT/egs/timit/s5/exp/tri3_ali'
 lab_opts='ali-to-pdf'
