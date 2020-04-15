@@ -23,7 +23,7 @@ from shutil import copyfile
 from data_io import load_chunk, load_counts, read_opts
 from torch import optim
 from torch.autograd import Variable
-from torch.utils.data import TensorDataset, DataLoader
+from torch.utils.data import TensorDataset, DataLoader, Dataset
 
 
 class MLP(nn.Module):
@@ -159,8 +159,8 @@ def main():
         for inp, lab in train_loader:
             net.train()
             if use_cuda:
-                inp = inp.to('float').to('cuda:0')
-                lab = lab.to('long').to('cuda:0')
+                inp = inp.to('cuda', dtype=torch.float)
+                lab = lab.to('cuda')
             optimizer.zero_grad()
 
             loss, err, pout, pred = net(inp, lab)
@@ -179,6 +179,11 @@ def main():
 
         end_epoch = timeit.default_timer()
 
+        dev = np.load('features_dev.npz')
+        dev_name = dev['names']
+        dev_end_index = dev['end_index']
+        dev_fea = dev['fea']
+        dev_lab = dev['lab']
         # ---EVALUATION OF DEV---#
         beg_snt = 0
         err_sum = 0.0
@@ -188,12 +193,12 @@ def main():
         # Reading dev-set sentence by sentence
         for i in range(n_dev_snt):
             end_snt = dev_end_index[i]
-            inp = Variable(dev_set[beg_snt:end_snt, 0:N_fea], volatile=True)
-            lab = Variable(dev_set[beg_snt:end_snt, N_fea], volatile=True)
+            inp = Variable(dev_fea[beg_snt:end_snt], volatile=True)
+            lab = Variable(dev_lab[beg_snt:end_snt], volatile=True)
 
             if save_gpumem and use_cuda:
-                inp = inp.cuda()
-                lab = lab.cuda()
+                inp = inp.to('cuda', dtype=torch.float)
+                lab = lab.to('cuda')
 
             loss, err, pout, pred = net(inp, lab)
             loss_sum = loss_sum + loss.data
@@ -202,7 +207,7 @@ def main():
             beg_snt = dev_end_index[i]
 
         loss_dev = loss_sum / n_dev_snt
-        err_dev = (err_sum / dev_set.shape[0]).cpu().numpy()
+        err_dev = (err_sum / dev_fea.shape[0]).cpu().numpy()
 
         # Learning rate annealing (if improvement on dev-set is small)
         lr_ep = lr
@@ -220,6 +225,12 @@ def main():
             param_group['lr'] = lr
 
         # ---EVALUATION OF TEST---#
+        test_set = np.load('features_dev.npz')
+        te_name = test_set['names']
+        te_end_index = test_set['end_index']
+        te_fea = test_set['fea']
+        te_lab = test_set['lab']
+
         beg_snt = 0
         err_sum = 0.0
         loss_sum = 0.0
@@ -233,12 +244,12 @@ def main():
 
         for i in range(n_te_snt):
             end_snt = te_end_index[i]
-            inp = Variable(te_set[beg_snt:end_snt, 0:N_fea], volatile=True)
-            lab = Variable(te_set[beg_snt:end_snt, N_fea], volatile=True)
+            inp = Variable(te_fea[beg_snt:end_snt], volatile=True)
+            lab = Variable(te_lab[beg_snt:end_snt], volatile=True)
 
             if save_gpumem and use_cuda:
-                inp = inp.cuda()
-                lab = lab.cuda()
+                inp = inp.to('cuda', dtype=torch.float)
+                lab = lab.to('cuda')
 
             loss, err, pout, pred = net(inp, lab)
 
@@ -252,7 +263,7 @@ def main():
             beg_snt = te_end_index[i]
 
         loss_te = loss_sum / n_te_snt
-        err_te = err_sum / te_set.shape[0]
+        err_te = err_sum / te_fea.shape[0]
 
         print(
             f'epoch {ep} training_cost={loss_tr}, training_error={err_tr}, '
