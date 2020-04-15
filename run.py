@@ -25,6 +25,10 @@ from timit_mlp.dataset import TimitTrainSet, TimitTestSet, load_set
 from timit_mlp.model import MLP
 
 
+def test():
+    pass
+
+
 def main():
     # Reading options in cfg file
     options = read_opts()
@@ -136,9 +140,8 @@ def main():
             param_group['lr'] = lr
 
         # ---EVALUATION OF TEST---#
-        beg_snt = 0
-        err_sum = 0.0
-        loss_sum = 0.0
+        errs = []
+        losses = []
         net.eval()
 
         if ep == num_epochs:
@@ -157,13 +160,12 @@ def main():
                 # writing the ark containing the normalized posterior probabilities (needed for kaldi decoding)
                 kaldi_io.write_mat(post_file, pout.data.cpu().numpy() - np.log(counts / np.sum(counts)), name)
 
-            loss_sum = loss_sum + loss.data
-            err_sum = err_sum + err.data
+            losses.append(loss.item())
+            errs.append(err.item())
+            lens.append(inp.shape[0])
 
-            beg_snt = te_end_index[i]
-
-        loss_te = loss_sum / n_te_snt
-        err_te = err_sum / te_fea.shape[0]
+        loss_te = sum(losses) / len(losses)
+        err_te = sum(errs) / sum(lens)
 
         print(
             f'epoch {ep} training_cost={loss_tr}, training_error={err_tr}, '

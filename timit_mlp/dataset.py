@@ -37,7 +37,7 @@ class TimitTestSet(Dataset):
         return self.fea.shape[0]
 
     def __getitem__(self, item):
-        name_ind = bisect(self.end_index, self.end_index)
+        name_ind = bisect(self.end_index, item)
         return self.names[name_ind], torch.from_numpy(self.fea[item]), torch.from_numpy(self.lab[item])
 
     def get_loader(self):
