@@ -1,6 +1,6 @@
 import numpy as np
 
-from data_io import load_chunk, read_opts
+from timit_mlp.data_io import load_chunk, read_opts
 
 
 def dump_chunk(name, scp, fea_opts, lab_folder, lab_opts, left, right):

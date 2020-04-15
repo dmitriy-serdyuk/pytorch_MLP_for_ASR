@@ -9,7 +9,7 @@
 # This code implements with pytorch a basic MLP  for speech recognition. 
 # It exploits an interface to  kaldi for feature computation and decoding. 
 # How to run it:
-# python MLP_ASR.py --cfg TIMIT_MLP_mfcc.cfg
+# python run.py --cfg TIMIT_MLP_mfcc.cfg
 
 import kaldi_io
 import numpy as np
@@ -20,10 +20,10 @@ import timeit
 import os
 from os.path import expandvars
 from shutil import copyfile
-from data_io import load_chunk, load_counts, read_opts
+from timit_mlp.data_io import load_counts, read_opts
 from torch import optim
 from torch.autograd import Variable
-from torch.utils.data import TensorDataset, DataLoader, Dataset
+from torch.utils.data import TensorDataset, DataLoader
 
 
 class MLP(nn.Module):
@@ -182,8 +182,8 @@ def main():
         dev = np.load('dataset_dev.npz')
         dev_name = dev['names']
         dev_end_index = dev['end_index']
-        dev_fea = dev['fea']
-        dev_lab = dev['lab']
+        dev_fea = torch.from_numpy(dev['fea'])
+        dev_lab = torch.from_numpy(dev['lab'])
         # ---EVALUATION OF DEV---#
         beg_snt = 0
         err_sum = 0.0
@@ -228,8 +228,8 @@ def main():
         test_set = np.load('dataset_te.npz')
         te_name = test_set['names']
         te_end_index = test_set['end_index']
-        te_fea = test_set['fea']
-        te_lab = test_set['lab']
+        te_fea = torch.from_numpy(test_set['fea'])
+        te_lab = torch.from_numpy(test_set['lab'])
 
         beg_snt = 0
         err_sum = 0.0
