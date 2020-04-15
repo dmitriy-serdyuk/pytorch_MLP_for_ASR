@@ -38,7 +38,7 @@ class TimitTestSet(Dataset):
 
     def __getitem__(self, item):
         name_ind = bisect(self.end_index, item)
-        return self.names[name_ind], torch.from_numpy(self.fea[item]), torch.from_numpy(self.lab[item])
+        return self.names[name_ind], self.fea[item], self.lab[item]
 
     def get_loader(self):
         return DataLoader(self, batch_sampler=TimitTestDataSampler(self))

@@ -25,8 +25,39 @@ from timit_mlp.dataset import TimitTrainSet, TimitTestSet, load_set
 from timit_mlp.model import MLP
 
 
-def test():
-    pass
+def test(net, loader, device, write_posts=False, out_folder=None, count_file=None):
+    if write_posts:
+        # set folder for posteriors ark
+        post_file = kaldi_io.open_or_fd(out_folder + '/pout_test.ark', 'wb')
+        counts = load_counts(count_file)
+
+    errs = []
+    losses = []
+    lens = []
+    net.eval()
+    # Reading dev-set sentence by sentence
+    for _, fea, lab in loader:
+        inp = fea.to(device, dtype=torch.float)
+        lab = lab.to(device)
+
+        with torch.no_grad():
+            loss, err, pout, pred = net(inp, lab)
+
+        if write_posts:
+            # writing the ark containing the normalized posterior probabilities (needed for kaldi decoding)
+            kaldi_io.write_mat(post_file, pout.data.cpu().numpy() - np.log(counts / np.sum(counts)), name)
+
+        losses.append(loss.item())
+        errs.append(err.item())
+        lens.append(inp.shape[0])
+
+    avg_loss = sum(losses) / len(losses)
+    avg_err = (sum(errs) / sum(lens)).cpu().numpy()
+
+    if write_posts:
+        post_file.close()
+
+    return avg_loss, avg_err
 
 
 def main():
@@ -106,23 +137,7 @@ def main():
         end_epoch = timeit.default_timer()
 
         # ---EVALUATION OF DEV---#
-        errs = []
-        losses = []
-        lens = []
-        net.eval()
-        # Reading dev-set sentence by sentence
-        for _, fea, lab in dev_loader:
-            inp = fea.to(options.device, dtype=torch.float)
-            lab = lab.to(options.device)
-
-            with torch.no_grad():
-                loss, err, pout, pred = net(inp, lab)
-            losses.append(loss.item())
-            errs.append(err.item())
-            lens.append(inp.shape[0])
-
-        loss_dev = sum(losses) / len(losses)
-        err_dev = (sum(errs) / sum(lens)).cpu().numpy()
+        loss_dev, err_dev = test(net, dev_loader, options.device)
 
         # Learning rate annealing (if improvement on dev-set is small)
         lr_ep = lr
@@ -140,32 +155,9 @@ def main():
             param_group['lr'] = lr
 
         # ---EVALUATION OF TEST---#
-        errs = []
-        losses = []
-        net.eval()
-
-        if ep == num_epochs:
-            # set folder for posteriors ark
-            post_file = kaldi_io.open_or_fd(options.out_folder + '/pout_test.ark', 'wb')
-            counts = load_counts(count_file)
-
-        for name, fea, lab in test_loader:
-            inp = fea.to(options.device, dtype=torch.float)
-            lab = lab.to(options.device)
-
-            with torch.no_grad():
-                loss, err, pout, pred = net(inp, lab)
-
-            if ep == num_epochs:
-                # writing the ark containing the normalized posterior probabilities (needed for kaldi decoding)
-                kaldi_io.write_mat(post_file, pout.data.cpu().numpy() - np.log(counts / np.sum(counts)), name)
-
-            losses.append(loss.item())
-            errs.append(err.item())
-            lens.append(inp.shape[0])
-
-        loss_te = sum(losses) / len(losses)
-        err_te = sum(errs) / sum(lens)
+        loss_te, err_te = test(
+            net, test_loader, options.device, write_posts=ep == num_epochs,
+            out_folder=options.out_folder, count_file=options.data.count_file)
 
         print(
             f'epoch {ep} training_cost={loss_tr}, training_error={err_tr}, '
@@ -175,8 +167,6 @@ def main():
             f'epoch {ep} training_cost={loss_tr}, training_error={err_tr}, '
             f'dev_error={err_dev}, test_error={err_te}, learning_rate={lr_ep}, '
             f'execution_time(s)={end_epoch - start_epoch}')
-
-    post_file.close()
     res_file.close()
     # Model Saving
     torch.save(net.state_dict(), expandvars(options.out_folder) + '/model.pkl')
