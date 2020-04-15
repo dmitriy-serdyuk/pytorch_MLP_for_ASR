@@ -136,10 +136,17 @@ def main():
         _, tr_set, _ = load_chunk(
             scp, tr_fea_opts, tr_lab_folder, tr_lab_opts,
             left, right, seed)
-        np.savez(f'features_{chunk_id}.npz', tr_set)
+        np.save(f'features_{chunk_id}.npy', tr_set)
+    _, te_set, _ = load_chunk(
+        te_fea_scp, te_fea_opts, te_lab_folder, te_lab_opts, left,
+        right, -1)
+    np.save(f'features_te.npy', te_set)
+    _, dev_set, _ = load_chunk(
+        dev_fea_scp, dev_fea_opts, dev_lab_folder, dev_lab_opts,
+        left, right, -1)
+    np.save(f'features_dev.npy', dev_set)
 
     for ep in range(1, N_ep + 1):
-
         # ---TRAINING LOOP---#
         err_sum = 0.0
         loss_sum = 0.0
@@ -184,9 +191,7 @@ def main():
                 optimizer = optim.SGD(net.parameters(), lr=lr)
 
                 # Loading Dev data
-                dev_name, dev_set, dev_end_index = load_chunk(
-                    dev_fea_scp, dev_fea_opts, dev_lab_folder, dev_lab_opts,
-                    left, right, -1)
+                dev_set = np.load('features_dev.npy')
 
                 if not save_gpumem:
                     dev_set = torch.from_numpy(dev_set).float().cuda()
@@ -194,9 +199,7 @@ def main():
                     dev_set = torch.from_numpy(dev_set).float()
 
                 # Loading Test data
-                te_name, te_set, te_end_index = load_chunk(
-                    te_fea_scp, te_fea_opts, te_lab_folder, te_lab_opts, left,
-                    right, -1)
+                te_set = np.load('features_te.npy')
 
                 if not save_gpumem:
                     te_set = torch.from_numpy(te_set).float().cuda()
@@ -297,7 +300,6 @@ def main():
             counts = load_counts(count_file)
 
         for i in range(n_te_snt):
-
             end_snt = te_end_index[i]
             inp = Variable(te_set[beg_snt:end_snt, 0:N_fea], volatile=True)
             lab = Variable(te_set[beg_snt:end_snt, N_fea], volatile=True)
