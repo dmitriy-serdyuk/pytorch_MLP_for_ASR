@@ -55,7 +55,7 @@ def context_window(fea, left, right):
 
 
 def load_chunk(fea_scp, fea_opts, lab_folder,
-               lab_opts, left, right, shuffle_seed):
+               lab_opts, left, right):
     # open the file
     data_name, data_set, data_lab, end_index = load_dataset(
         fea_scp, fea_opts, lab_folder, lab_opts, left, right)
@@ -73,14 +73,7 @@ def load_chunk(fea_scp, fea_opts, lab_folder,
     else:
         data_lab = data_lab[left:]
 
-    data_set = np.column_stack((data_set, data_lab))
-
-    # shuffle (only for test data)
-    if shuffle_seed > 0:
-        np.random.seed(shuffle_seed)
-        np.random.shuffle(data_set)
-
-    return data_name, data_set, end_index
+    return data_name, data_set, data_lab, end_index
 
 
 def load_counts(class_counts_file):
