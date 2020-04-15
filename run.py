@@ -45,7 +45,7 @@ def test(net, loader, device, write_posts=False, out_folder=None, count_file=Non
 
         if write_posts:
             # writing the ark containing the normalized posterior probabilities (needed for kaldi decoding)
-            kaldi_io.write_mat(post_file, pout.data.cpu().numpy() - np.log(counts / np.sum(counts)), name)
+            kaldi_io.write_mat(post_file, pout.data.cpu().numpy() - np.log(counts / np.sum(counts)), name[0])
 
         losses.append(loss.item())
         errs.append(err.item())
