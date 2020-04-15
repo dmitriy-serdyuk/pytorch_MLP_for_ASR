@@ -119,7 +119,7 @@ def read_opts():
     options.cw_left = config.get('architecture', 'cw_left')
     options.cw_right = config.get('architecture', 'cw_right')
     options.seed = config.get('architecture', 'seed')
-    options.use_cuda = config.get('architecture', 'use_cuda')
+    options.device = config.get('architecture', 'device')
 
     options.N_ep = config.get('optimization', 'N_ep')
     options.lr = config.get('optimization', 'lr')

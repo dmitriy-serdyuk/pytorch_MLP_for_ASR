@@ -118,7 +118,6 @@ def main():
     drop_rate = float(options.drop_rate)
     use_batchnorm = bool(int(options.use_batchnorm))
     seed = int(options.seed)
-    use_cuda = bool(int(options.use_cuda))
 
     # reading optimization options
     N_ep = int(options.N_ep)
@@ -126,7 +125,6 @@ def main():
     lr = float(options.lr)
     halving_factor = float(options.halving_factor)
     improvement_threshold = float(options.improvement_threshold)
-    save_gpumem = int(options.save_gpumem)
 
     # Create output folder
     if not os.path.exists(options.out_folder):
@@ -144,8 +142,7 @@ def main():
     train_loader, dev_loader, test_loader, num_fea, num_out = load_data(options)
 
     net = MLP(num_fea, hidden_dim, N_hid, drop_rate, use_batchnorm, num_out)
-    if use_cuda:
-        net.cuda()
+    net.to(options.device)
     optimizer = optim.SGD(net.parameters(), lr=lr)
 
     for ep in range(1, N_ep + 1):
@@ -158,9 +155,8 @@ def main():
 
         for inp, lab in train_loader:
             net.train()
-            if use_cuda:
-                inp = inp.to('cuda', dtype=torch.float)
-                lab = lab.to('cuda')
+            inp = inp.to(options.device, dtype=torch.float)
+            lab = lab.to(options.device)
             optimizer.zero_grad()
 
             loss, err, pout, pred = net(inp, lab)
@@ -193,16 +189,13 @@ def main():
         # Reading dev-set sentence by sentence
         for i in range(n_dev_snt):
             end_snt = dev_end_index[i]
-            inp = Variable(dev_fea[beg_snt:end_snt], volatile=True)
-            lab = Variable(dev_lab[beg_snt:end_snt], volatile=True)
+            inp = dev_fea[beg_snt:end_snt].to(options.device, dtype=torch.float)
+            lab = dev_lab[beg_snt:end_snt].to(options.device)
 
-            if save_gpumem and use_cuda:
-                inp = inp.to('cuda', dtype=torch.float)
-                lab = lab.to('cuda')
-
-            loss, err, pout, pred = net(inp, lab)
-            loss_sum = loss_sum + loss.data
-            err_sum = err_sum + err.data
+            with torch.no_grad():
+                loss, err, pout, pred = net(inp, lab)
+            loss_sum = loss_sum + loss.item()
+            err_sum = err_sum + err.item()
 
             beg_snt = dev_end_index[i]
 
@@ -244,14 +237,11 @@ def main():
 
         for i in range(n_te_snt):
             end_snt = te_end_index[i]
-            inp = Variable(te_fea[beg_snt:end_snt], volatile=True)
-            lab = Variable(te_lab[beg_snt:end_snt], volatile=True)
+            inp = te_fea[beg_snt:end_snt].to(options.device, dtype=torch.float)
+            lab = te_lab[beg_snt:end_snt].to(options.device)
 
-            if save_gpumem and use_cuda:
-                inp = inp.to('cuda', dtype=torch.float)
-                lab = lab.to('cuda')
-
-            loss, err, pout, pred = net(inp, lab)
+            with torch.no_grad():
+                loss, err, pout, pred = net(inp, lab)
 
             if ep == N_ep:
                 # writing the ark containing the normalized posterior probabilities (needed for kaldi decoding)
