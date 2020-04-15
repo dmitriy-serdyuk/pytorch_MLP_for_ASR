@@ -21,7 +21,7 @@ from shutil import copyfile
 from timit_mlp.data_io import load_counts, read_opts
 from torch import optim
 
-from timit_mlp.dataset import TimitTrainSet, TimitTestSet, load_set
+from timit_mlp.dataset import TimitTrainSet, TimitTestSet
 from timit_mlp.model import MLP
 
 
@@ -36,7 +36,7 @@ def test(net, loader, device, write_posts=False, out_folder=None, count_file=Non
     lens = []
     net.eval()
     # Reading dev-set sentence by sentence
-    for _, fea, lab in loader:
+    for name, fea, lab in loader:
         inp = fea.to(device, dtype=torch.float)
         lab = lab.to(device)
 
@@ -52,7 +52,7 @@ def test(net, loader, device, write_posts=False, out_folder=None, count_file=Non
         lens.append(inp.shape[0])
 
     avg_loss = sum(losses) / len(losses)
-    avg_err = (sum(errs) / sum(lens)).cpu().numpy()
+    avg_err = (sum(errs) / sum(lens))
 
     if write_posts:
         post_file.close()
@@ -63,9 +63,6 @@ def test(net, loader, device, write_posts=False, out_folder=None, count_file=Non
 def main():
     # Reading options in cfg file
     options = read_opts()
-
-    # Reading count file from kaldi
-    count_file = options.data.count_file
 
     # reading architectural options
     seed = options.seed
