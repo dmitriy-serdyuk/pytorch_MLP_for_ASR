@@ -9,122 +9,57 @@
 # This code implements with pytorch a basic MLP  for speech recognition. 
 # It exploits an interface to  kaldi for feature computation and decoding. 
 # How to run it:
-# python run.py --cfg TIMIT_MLP_mfcc.cfg
+# python run.py --cfg TIMIT_MLP_mfcc.toml
 
 import kaldi_io
 import numpy as np
 import torch
-import torch.nn.functional as F
-import torch.nn as nn
 import timeit
 import os
 from os.path import expandvars
 from shutil import copyfile
 from timit_mlp.data_io import load_counts, read_opts
 from torch import optim
-from torch.autograd import Variable
-from torch.utils.data import TensorDataset, DataLoader
+from torch.utils.data import TensorDataset, DataLoader, Dataset
+
+from timit_mlp.model import MLP
 
 
-class MLP(nn.Module):
-    def __init__(self, input_dim, hidden_dim, N_hid, drop_rate, use_batchnorm, num_classes):
-        super(MLP, self).__init__()
-        self.N_hid = N_hid
-        self.use_batchnorm = use_batchnorm
-
-        # list initialization
-        self.hidden = nn.ModuleList([])
-        self.droplay = nn.ModuleList([])
-        self.bnlay = nn.ModuleList([])
-        self.criterion = nn.CrossEntropyLoss()
-
-        curr_in_dim = input_dim
-        for i in range(N_hid):
-            fc = nn.Linear(curr_in_dim, hidden_dim)
-            fc.weight = torch.nn.Parameter(
-                torch.Tensor(hidden_dim, curr_in_dim).uniform_(-np.sqrt(0.01 / (curr_in_dim + hidden_dim)),
-                                                               np.sqrt(0.01 / (curr_in_dim + hidden_dim))))
-            fc.bias = torch.nn.Parameter(torch.zeros(hidden_dim))
-            curr_in_dim = hidden_dim
-            self.hidden.append(fc)
-            self.droplay.append(nn.Dropout(p=drop_rate))
-            if use_batchnorm:
-                self.bnlay.append(nn.BatchNorm1d(hidden_dim, momentum=0.05))
-
-        self.fco = nn.Linear(curr_in_dim, num_classes)
-        self.fco.weight = torch.nn.Parameter(torch.zeros(num_classes, curr_in_dim))
-        self.fco.bias = torch.nn.Parameter(torch.zeros(num_classes))
-
-    def forward(self, x, lab):
-        out = x
-        for i in range(self.N_hid):
-            fc = self.hidden[i]
-            drop = self.droplay[i]
-
-            if self.use_batchnorm:
-                batchnorm = self.bnlay[i]
-                out = drop(F.relu(batchnorm(fc(out))))
-            else:
-                out = drop(F.relu(fc(out)))
-
-        out = self.fco(out)
-        pout = F.log_softmax(out, dim=1)
-        pred = pout.max(dim=1)[1]
-        err = torch.sum((pred != lab.long()).float())
-        loss = self.criterion(out, lab.long())  # note that softmax is included in nn.CrossEntropyLoss()
-        return loss, err, pout, pred
+class TimitTestSet(Dataset):
+    def __init__(self):
+        pass
 
 
-def load_data(options):
-    tr_fea_scp = options.tr_fea_scp.split(',')
-    batch_size = int(options.batch_size)
+class TimitTrainSet(TensorDataset):
+    def __init__(self):
+        with np.load('dataset_tr.npz') as file:
+            chunks = file['chunks']
+            fea = np.concatenate([file[f'fea_{chunk_id}'] for chunk_id in chunks], 0)
+            lab = np.concatenate([file[f'lab_{chunk_id}'] for chunk_id in chunks])
+        super().__init__(torch.from_numpy(fea), torch.from_numpy(lab))
 
-    tr_fea = np.concatenate([np.load(f'dataset_tr_{chunk_id}.npz')['fea']
-                             for chunk_id in range(len(tr_fea_scp))], 0)
-    tr_lab = np.concatenate([np.load(f'dataset_tr_{chunk_id}.npz')['lab']
-                             for chunk_id in range(len(tr_fea_scp))])
-    train_dataset = TensorDataset(torch.from_numpy(tr_fea), torch.from_numpy(tr_lab))
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, pin_memory=True)
+        self.num_fea = fea.shape[1]
+        self.num_out = int(lab.max() - lab.min() + 1)
 
-    num_fea = tr_fea.shape[1]
-    num_out = int(tr_lab.max() - tr_lab.min() + 1)
-
-    dev_fea = np.load(f'dataset_dev.npz')['fea']
-    dev_lab = np.load(f'dataset_dev.npz')['lab']
-    dev_dataset = TensorDataset(torch.from_numpy(dev_fea), torch.from_numpy(dev_lab))
-    dev_loader = DataLoader(dev_dataset, batch_size=batch_size, pin_memory=True)
-
-    te_fea = np.load(f'dataset_te.npz')['fea']
-    te_lab = np.load(f'dataset_te.npz')['lab']
-    test_dataset = TensorDataset(torch.from_numpy(te_fea), torch.from_numpy(te_lab))
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, pin_memory=True)
-
-    return train_loader, dev_loader, test_loader, num_fea, num_out
+    def get_loader(self, batch_size):
+        return DataLoader(self, batch_size, shuffle=True, pin_memory=True)
 
 
 def main():
     # Reading options in cfg file
     options = read_opts()
 
-    # Reading training data options
-    tr_fea_scp = options.tr_fea_scp.split(',')
-
     # Reading count file from kaldi
-    count_file = options.count_file
+    count_file = options.data.count_file
 
     # reading architectural options
-    hidden_dim = int(options.hidden_dim)
-    N_hid = int(options.N_hid)
-    drop_rate = float(options.drop_rate)
-    use_batchnorm = bool(int(options.use_batchnorm))
-    seed = int(options.seed)
+    seed = options.seed
 
     # reading optimization options
-    N_ep = int(options.N_ep)
-    batch_size = int(options.batch_size)
-    lr = float(options.lr)
-    halving_factor = float(options.halving_factor)
-    improvement_threshold = float(options.improvement_threshold)
+    num_epochs = options.optimization.num_epochs
+    lr = options.optimization.lr
+    halving_factor = options.optimization.halving_factor
+    improvement_threshold = options.optimization.improvement_threshold
 
     # Create output folder
     if not os.path.exists(options.out_folder):
@@ -139,13 +74,18 @@ def main():
     # Creating the res file
     res_file = open(options.out_folder + '/results.res', "w")
 
-    train_loader, dev_loader, test_loader, num_fea, num_out = load_data(options)
+    batch_size = options.optimization.batch_size
 
-    net = MLP(num_fea, hidden_dim, N_hid, drop_rate, use_batchnorm, num_out)
+    train_dataset = TimitTrainSet()
+    train_loader = train_dataset.get_loader(batch_size)
+
+    net = MLP(input_dim=train_dataset.num_fea,
+              num_classes=train_dataset.num_out,
+              **options.architecture)
     net.to(options.device)
     optimizer = optim.SGD(net.parameters(), lr=lr)
 
-    for ep in range(1, N_ep + 1):
+    for ep in range(1, num_epochs + 1):
         # ---TRAINING LOOP---#
         err_sum = 0.0
         loss_sum = 0.0
@@ -230,7 +170,7 @@ def main():
         n_te_snt = len(te_name)
         net.eval()
 
-        if ep == N_ep:
+        if ep == num_epochs:
             # set folder for posteriors ark
             post_file = kaldi_io.open_or_fd(options.out_folder + '/pout_test.ark', 'wb')
             counts = load_counts(count_file)
@@ -243,7 +183,7 @@ def main():
             with torch.no_grad():
                 loss, err, pout, pred = net(inp, lab)
 
-            if ep == N_ep:
+            if ep == num_epochs:
                 # writing the ark containing the normalized posterior probabilities (needed for kaldi decoding)
                 kaldi_io.write_mat(post_file, pout.data.cpu().numpy() - np.log(counts / np.sum(counts)), te_name[i])
 

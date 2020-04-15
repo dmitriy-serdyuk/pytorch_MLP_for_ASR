@@ -1,8 +1,10 @@
 import kaldi_io
 import numpy as np
 import configparser
+import toml
 from os.path import expandvars
 from optparse import OptionParser
+from argparse import ArgumentParser, Namespace
 
 
 def load_dataset(fea_scp, fea_opts, lab_folder, lab_opts, left, right):
@@ -84,48 +86,19 @@ def load_counts(class_counts_file):
 
 
 def read_opts():
-    parser = OptionParser()
-    parser.add_option("--cfg")  # Mandatory
-    options, args = parser.parse_args()
+    parser = ArgumentParser()
+    parser.add_argument("--cfg")
+    args = parser.parse_args()
 
-    cfg_file = options.cfg
-    config = configparser.ConfigParser()
-    config.read(cfg_file)
+    cfg_file = args.cfg
 
-    # DATA
-    options.out_folder = config.get('data', 'out_folder')
-    options.tr_fea_scp = config.get('data', 'tr_fea_scp')
-    options.tr_fea_opts = config.get('data', 'tr_fea_opts')
-    options.tr_lab_folder = config.get('data', 'tr_lab_folder')
-    options.tr_lab_opts = config.get('data', 'tr_lab_opts')
+    def namespacify(d):
+        if isinstance(d, dict):
+            return Namespace(**{k: namespacify(v) for k, v in d.items()})
+        else:
+            return d
 
-    options.dev_fea_scp = config.get('data', 'dev_fea_scp')
-    options.dev_fea_opts = config.get('data', 'dev_fea_opts')
-    options.dev_lab_folder = config.get('data', 'dev_lab_folder')
-    options.dev_lab_opts = config.get('data', 'dev_lab_opts')
-
-    options.te_fea_scp = config.get('data', 'te_fea_scp')
-    options.te_fea_opts = config.get('data', 'te_fea_opts')
-    options.te_lab_folder = config.get('data', 'te_lab_folder')
-    options.te_lab_opts = config.get('data', 'te_lab_opts')
-
-    options.count_file = config.get('data', 'count_file')
-
-    # ARCHITECTURE
-    options.hidden_dim = config.get('architecture', 'hidden_dim')
-    options.N_hid = config.get('architecture', 'N_hid')
-    options.drop_rate = config.get('architecture', 'drop_rate')
-    options.use_batchnorm = config.get('architecture', 'use_batchnorm')
-    options.cw_left = config.get('architecture', 'cw_left')
-    options.cw_right = config.get('architecture', 'cw_right')
-    options.seed = config.get('architecture', 'seed')
-    options.device = config.get('architecture', 'device')
-
-    options.N_ep = config.get('optimization', 'N_ep')
-    options.lr = config.get('optimization', 'lr')
-    options.halving_factor = config.get('optimization', 'halving_factor')
-    options.improvement_threshold = config.get('optimization', 'improvement_threshold')
-    options.batch_size = config.get('optimization', 'batch_size')
-    options.save_gpumem = config.get('optimization', 'save_gpumem')
+    options = namespacify(toml.load(cfg_file))
+    options.cfg = cfg_file
 
     return options

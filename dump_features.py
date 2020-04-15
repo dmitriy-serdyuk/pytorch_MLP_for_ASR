@@ -3,33 +3,26 @@ import numpy as np
 from timit_mlp.data_io import load_chunk, read_opts
 
 
-def dump_chunk(name, scp, fea_opts, lab_folder, lab_opts, left, right):
-    names, fea, lab, end_index = load_chunk(
-        scp, fea_opts, lab_folder, lab_opts,
-        left, right)
-    np.savez(f'dataset_{name}.npz',
-             names=names, fea=fea, lab=lab, end_index=end_index)
+def dump_chunk(name, data_options, left, right):
+    all_data = {}
+    for chunk_id, scp in enumerate(data_options.fea_scp):
+        names, fea, lab, end_index = load_chunk(
+            scp, data_options.fea_opts, data_options.lab_folder, data_options.lab_opts,
+            left, right)
+        all_data[f'names_{chunk_id}'] = names
+        all_data[f'fea_{chunk_id}'] = fea
+        all_data[f'lab_{chunk_id}'] = lab
+        all_data[f'end_index_{chunk_id}'] = end_index
+    np.savez(f'dataset_{name}.npz', **all_data,
+             chunks=list(range(len(data_options.fea_scp))))
 
 
 def dump_features(options):
     # Dump features
-    left, right = int(options.cw_left), int(options.cw_right)
-    for chunk_id, scp in enumerate(options.tr_fea_scp.split(',')):
-        # Reading training chunk
-        dump_chunk(
-            f"tr_{chunk_id}",
-            scp, options.tr_fea_opts, options.tr_lab_folder, options.tr_lab_opts,
-            left, right)
-
-    dump_chunk(
-        f"te",
-        options.te_fea_scp, options.te_fea_opts, options.te_lab_folder, options.te_lab_opts,
-        left, right)
-
-    dump_chunk(
-        f"dev",
-        options.dev_fea_scp, options.dev_fea_opts, options.dev_lab_folder, options.dev_lab_opts,
-        left, right)
+    left, right = options.data.cw_left, options.data.cw_right
+    dump_chunk("tr", options.tr_data, left, right)
+    dump_chunk("te", options.te_data, left, right)
+    dump_chunk("dev", options.dev_data, left, right)
 
 
 def main():
