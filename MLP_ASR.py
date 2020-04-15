@@ -19,10 +19,11 @@ import torch.nn as nn
 import timeit
 import os
 from os.path import expandvars
-from torch import optim
-from torch.autograd import Variable
 from shutil import copyfile
 from data_io import load_chunk, load_counts, read_opts
+from torch import optim
+from torch.autograd import Variable
+from torch.utils.data import TensorDataset
 
 
 class MLP(nn.Module):
@@ -72,34 +73,40 @@ class MLP(nn.Module):
         return loss, err, pout, pred
 
 
+def dump_features(options):
+    # Dump features
+    for chunk_id, scp in enumerate(options.tr_fea_scp.split(',')):
+        # Reading training chunk
+        _, tr_set, _ = load_chunk(
+            scp, options.tr_fea_opts, options.tr_lab_folder, options.tr_lab_opts,
+            int(options.cw_left), int(options.cw_right), -1)
+        np.save(f'features_{chunk_id}.npy', tr_set)
+
+    te_names, te_set, te_end_index = load_chunk(
+        options.te_fea_scp, options.te_fea_opts, options.te_lab_folder,
+        options.te_lab_opts, int(options.cw_left), int(options.cw_right), -1)
+    np.savez(f'features_te.npz',
+             dict(names=te_names, data=te_set, end_index=te_end_index))
+
+    dev_names, dev_set, dev_end_index = load_chunk(
+        options.dev_fea_scp, options.dev_fea_opts, options.dev_lab_folder,
+        options.dev_lab_opts,
+        int(options.cw_left), int(options.cw_right), -1)
+    np.savez(f'features_dev.npz',
+             dict(names=dev_names, data=dev_set, end_index=dev_end_index))
+
+
 def main():
     # Reading options in cfg file
     options = read_opts()
 
     # Reading training data options
     tr_fea_scp = options.tr_fea_scp.split(',')
-    tr_fea_opts = options.tr_fea_opts
-    tr_lab_folder = options.tr_lab_folder
-    tr_lab_opts = options.tr_lab_opts
-
-    # Reading dev data options
-    dev_fea_scp = options.dev_fea_scp
-    dev_fea_opts = options.dev_fea_opts
-    dev_lab_folder = options.dev_lab_folder
-    dev_lab_opts = options.dev_lab_opts
-
-    # Reading test data options
-    te_fea_scp = options.te_fea_scp
-    te_fea_opts = options.te_fea_opts
-    te_lab_folder = options.te_lab_folder
-    te_lab_opts = options.te_lab_opts
 
     # Reading count file from kaldi
     count_file = options.count_file
 
     # reading architectural options
-    left = int(options.cw_left)
-    right = int(options.cw_right)
     hidden_dim = int(options.hidden_dim)
     N_hid = int(options.N_hid)
     drop_rate = float(options.drop_rate)
@@ -128,23 +135,7 @@ def main():
     # Creating the res file
     res_file = open(options.out_folder + '/results.res', "w")
 
-    # Dump features
-    for chunk_id, scp in enumerate(tr_fea_scp):
-        seed = seed + 100
-
-        # Reading training chunk
-        _, tr_set, _ = load_chunk(
-            scp, tr_fea_opts, tr_lab_folder, tr_lab_opts,
-            left, right, seed)
-        np.save(f'features_{chunk_id}.npy', tr_set)
-    _, te_set, _ = load_chunk(
-        te_fea_scp, te_fea_opts, te_lab_folder, te_lab_opts, left,
-        right, -1)
-    np.save(f'features_te.npy', te_set)
-    _, dev_set, _ = load_chunk(
-        dev_fea_scp, dev_fea_opts, dev_lab_folder, dev_lab_opts,
-        left, right, -1)
-    np.save(f'features_dev.npy', dev_set)
+    dump_features(options)
 
     for ep in range(1, N_ep + 1):
         # ---TRAINING LOOP---#
@@ -160,7 +151,7 @@ def main():
             seed = seed + 100
 
             # Reading training chunk
-            tr_set = np.load(f'features_{chunk_id}.npz')
+            tr_set = np.load(f'features_{chunk_id}.npy')
 
             if not save_gpumem:
                 tr_set = torch.from_numpy(tr_set).float().cuda()
@@ -191,7 +182,10 @@ def main():
                 optimizer = optim.SGD(net.parameters(), lr=lr)
 
                 # Loading Dev data
-                dev_set = np.load('features_dev.npy')
+                dev_dataset = np.load('features_dev.npz')
+                dev_name = dev_dataset['names']
+                dev_set = dev_dataset['data']
+                dev_end_index = dev_dataset['end_index']
 
                 if not save_gpumem:
                     dev_set = torch.from_numpy(dev_set).float().cuda()
@@ -199,7 +193,10 @@ def main():
                     dev_set = torch.from_numpy(dev_set).float()
 
                 # Loading Test data
-                te_set = np.load('features_te.npy')
+                te_dataset = np.load('features_te.npz')
+                te_name = te_dataset['names']
+                te_set = te_dataset['data']
+                te_end_index = te_dataset['end_index']
 
                 if not save_gpumem:
                     te_set = torch.from_numpy(te_set).float().cuda()
@@ -254,7 +251,6 @@ def main():
         net.eval()
         # Reading dev-set sentence by sentence
         for i in range(n_dev_snt):
-
             end_snt = dev_end_index[i]
             inp = Variable(dev_set[beg_snt:end_snt, 0:N_fea], volatile=True)
             lab = Variable(dev_set[beg_snt:end_snt, N_fea], volatile=True)
