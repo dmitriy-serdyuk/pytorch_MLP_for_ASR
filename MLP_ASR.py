@@ -86,14 +86,14 @@ def dump_features(options):
         options.te_fea_scp, options.te_fea_opts, options.te_lab_folder,
         options.te_lab_opts, int(options.cw_left), int(options.cw_right), -1)
     np.savez(f'features_te.npz',
-             dict(names=te_names, data=te_set, end_index=te_end_index))
+             names=te_names, data=te_set, end_index=te_end_index)
 
     dev_names, dev_set, dev_end_index = load_chunk(
         options.dev_fea_scp, options.dev_fea_opts, options.dev_lab_folder,
         options.dev_lab_opts,
         int(options.cw_left), int(options.cw_right), -1)
     np.savez(f'features_dev.npz',
-             dict(names=dev_names, data=dev_set, end_index=dev_end_index))
+             names=dev_names, data=dev_set, end_index=dev_end_index)
 
 
 def main():
@@ -147,7 +147,6 @@ def main():
 
         # Processing training chunks
         for chunk_id in range(len(tr_fea_scp)):
-
             seed = seed + 100
 
             # Reading training chunk
