@@ -179,7 +179,7 @@ def main():
 
         end_epoch = timeit.default_timer()
 
-        dev = np.load('features_dev.npz')
+        dev = np.load('dataset_dev.npz')
         dev_name = dev['names']
         dev_end_index = dev['end_index']
         dev_fea = dev['fea']
@@ -225,7 +225,7 @@ def main():
             param_group['lr'] = lr
 
         # ---EVALUATION OF TEST---#
-        test_set = np.load('features_dev.npz')
+        test_set = np.load('dataset_te.npz')
         te_name = test_set['names']
         te_end_index = test_set['end_index']
         te_fea = test_set['fea']
