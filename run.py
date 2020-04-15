@@ -21,7 +21,7 @@ from shutil import copyfile
 from timit_mlp.data_io import load_counts, read_opts
 from torch import optim
 
-from timit_mlp.dataset import TimitTrainSet
+from timit_mlp.dataset import TimitTrainSet, load_set
 from timit_mlp.model import MLP
 
 
@@ -95,11 +95,7 @@ def main():
 
         end_epoch = timeit.default_timer()
 
-        dev = np.load('dataset_dev.npz')
-        dev_name = dev['names']
-        dev_end_index = dev['end_index']
-        dev_fea = torch.from_numpy(dev['fea'])
-        dev_lab = torch.from_numpy(dev['lab'])
+        dev_name, dev_fea, dev_lab, dev_end_index = load_set('dataset_dev.npz')
         # ---EVALUATION OF DEV---#
         beg_snt = 0
         err_sum = 0.0
@@ -138,11 +134,7 @@ def main():
             param_group['lr'] = lr
 
         # ---EVALUATION OF TEST---#
-        test_set = np.load('dataset_te.npz')
-        te_name = test_set['names']
-        te_end_index = test_set['end_index']
-        te_fea = torch.from_numpy(test_set['fea'])
-        te_lab = torch.from_numpy(test_set['lab'])
+        te_name, te_fea, te_lab, te_end_index = load_set('dataset_dev.npz')
 
         beg_snt = 0
         err_sum = 0.0
