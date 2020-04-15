@@ -1,7 +1,8 @@
 import kaldi_io
 import numpy as np
+import configparser
+from os.path import expandvars
 from optparse import OptionParser
-import ConfigParser
 
 
 def load_dataset(fea_scp, fea_opts, lab_folder, lab_opts, left, right):
@@ -77,8 +78,8 @@ def load_chunk(fea_scp, fea_opts, lab_folder, lab_opts, left, right, shuffle_see
 
 
 def load_counts(class_counts_file):
-    with open(class_counts_file) as f:
-        row = f.next().strip().strip('[]').strip()
+    with open(expandvars(class_counts_file)) as f:
+        row = f.readline().strip().strip('[]').strip()
         counts = np.array([np.float32(v) for v in row.split()])
     return counts
 
@@ -89,43 +90,43 @@ def read_opts():
     options, args = parser.parse_args()
 
     cfg_file = options.cfg
-    Config = ConfigParser.ConfigParser()
-    Config.read(cfg_file)
+    config = configparser.ConfigParser()
+    config.read(cfg_file)
 
     # DATA
-    options.out_folder = Config.get('data', 'out_folder')
-    options.tr_fea_scp = Config.get('data', 'tr_fea_scp')
-    options.tr_fea_opts = Config.get('data', 'tr_fea_opts')
-    options.tr_lab_folder = Config.get('data', 'tr_lab_folder')
-    options.tr_lab_opts = Config.get('data', 'tr_lab_opts')
+    options.out_folder = config.get('data', 'out_folder')
+    options.tr_fea_scp = config.get('data', 'tr_fea_scp')
+    options.tr_fea_opts = config.get('data', 'tr_fea_opts')
+    options.tr_lab_folder = config.get('data', 'tr_lab_folder')
+    options.tr_lab_opts = config.get('data', 'tr_lab_opts')
 
-    options.dev_fea_scp = Config.get('data', 'dev_fea_scp')
-    options.dev_fea_opts = Config.get('data', 'dev_fea_opts')
-    options.dev_lab_folder = Config.get('data', 'dev_lab_folder')
-    options.dev_lab_opts = Config.get('data', 'dev_lab_opts')
+    options.dev_fea_scp = config.get('data', 'dev_fea_scp')
+    options.dev_fea_opts = config.get('data', 'dev_fea_opts')
+    options.dev_lab_folder = config.get('data', 'dev_lab_folder')
+    options.dev_lab_opts = config.get('data', 'dev_lab_opts')
 
-    options.te_fea_scp = Config.get('data', 'te_fea_scp')
-    options.te_fea_opts = Config.get('data', 'te_fea_opts')
-    options.te_lab_folder = Config.get('data', 'te_lab_folder')
-    options.te_lab_opts = Config.get('data', 'te_lab_opts')
+    options.te_fea_scp = config.get('data', 'te_fea_scp')
+    options.te_fea_opts = config.get('data', 'te_fea_opts')
+    options.te_lab_folder = config.get('data', 'te_lab_folder')
+    options.te_lab_opts = config.get('data', 'te_lab_opts')
 
-    options.count_file = Config.get('data', 'count_file')
+    options.count_file = config.get('data', 'count_file')
 
     # ARCHITECTURE
-    options.hidden_dim = Config.get('architecture', 'hidden_dim')
-    options.N_hid = Config.get('architecture', 'N_hid')
-    options.drop_rate = Config.get('architecture', 'drop_rate')
-    options.use_batchnorm = Config.get('architecture', 'use_batchnorm')
-    options.cw_left = Config.get('architecture', 'cw_left')
-    options.cw_right = Config.get('architecture', 'cw_right')
-    options.seed = Config.get('architecture', 'seed')
-    options.use_cuda = Config.get('architecture', 'use_cuda')
+    options.hidden_dim = config.get('architecture', 'hidden_dim')
+    options.N_hid = config.get('architecture', 'N_hid')
+    options.drop_rate = config.get('architecture', 'drop_rate')
+    options.use_batchnorm = config.get('architecture', 'use_batchnorm')
+    options.cw_left = config.get('architecture', 'cw_left')
+    options.cw_right = config.get('architecture', 'cw_right')
+    options.seed = config.get('architecture', 'seed')
+    options.use_cuda = config.get('architecture', 'use_cuda')
 
-    options.N_ep = Config.get('optimization', 'N_ep')
-    options.lr = Config.get('optimization', 'lr')
-    options.halving_factor = Config.get('optimization', 'halving_factor')
-    options.improvement_threshold = Config.get('optimization', 'improvement_threshold')
-    options.batch_size = Config.get('optimization', 'batch_size')
-    options.save_gpumem = Config.get('optimization', 'save_gpumem')
+    options.N_ep = config.get('optimization', 'N_ep')
+    options.lr = config.get('optimization', 'lr')
+    options.halving_factor = config.get('optimization', 'halving_factor')
+    options.improvement_threshold = config.get('optimization', 'improvement_threshold')
+    options.batch_size = config.get('optimization', 'batch_size')
+    options.save_gpumem = config.get('optimization', 'save_gpumem')
 
     return options

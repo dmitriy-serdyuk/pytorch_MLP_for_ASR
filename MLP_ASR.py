@@ -14,12 +14,13 @@
 import kaldi_io
 import numpy as np
 import torch
-from torch.autograd import Variable
 import torch.nn.functional as F
 import torch.nn as nn
 import timeit
-import torch.optim as optim
 import os
+from os.path import expandvars
+from torch import optim
+from torch.autograd import Variable
 from shutil import copyfile
 from data_io import load_chunk, load_counts, read_opts
 
@@ -318,7 +319,7 @@ def main():
     post_file.close()
     res_file.close()
     # Model Saving
-    torch.save(net.state_dict(), options.out_folder + '/model.pkl')
+    torch.save(net.state_dict(), expandvars(options.out_folder) + '/model.pkl')
 
     # If everything went fine, you can run the kaldi phone-loop decoder:
     # cd kaldi_decoding_scripts
