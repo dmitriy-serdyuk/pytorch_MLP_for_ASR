@@ -15,7 +15,7 @@ def load_dataset(fea_scp, fea_opts, lab_folder, lab_opts, left, right):
            if k in fea}  # Note that I'm copying only the alignments of the loaded fea
     # This way I remove all the features without an alignment (see log file in alidir "Did not Succeded")
     fea = {k: v for k, v in fea.items()
-           if k in lab}  
+           if k in lab}
 
     count = 0
     end_snt = 0
@@ -54,7 +54,8 @@ def context_window(fea, left, right):
     return frames
 
 
-def load_chunk(fea_scp, fea_opts, lab_folder, lab_opts, left, right, shuffle_seed):
+def load_chunk(fea_scp, fea_opts, lab_folder,
+               lab_opts, left, right, shuffle_seed):
     # open the file
     data_name, data_set, data_lab, end_index = load_dataset(
         fea_scp, fea_opts, lab_folder, lab_opts, left, right)

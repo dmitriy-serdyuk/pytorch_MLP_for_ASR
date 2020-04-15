@@ -310,11 +310,13 @@ def main():
         err_te = err_sum / te_set.shape[0]
 
         print(
-            'epoch %i training_cost=%f, training_error=%f, dev_error=%f, test_error=%f, learning_rate=%f, execution_time(s)=%f' % (
-            ep, loss_tr, err_tr, err_dev, err_te, lr_ep, end_epoch - start_epoch))
+            f'epoch {ep} training_cost={loss_tr}, training_error={err_tr}, '
+            f'dev_error={err_dev}, test_error={err_te}, learning_rate={lr_ep}, '
+            f'execution_time(s)={end_epoch - start_epoch}')
         res_file.write(
-            'epoch %i training_cost=%f, training_error=%f, dev_error=%f, test_error=%f, learning_rate=%f, execution_time(s)=%f\n' % (
-            ep, loss_tr, err_tr, err_dev, err_te, lr_ep, end_epoch - start_epoch))
+            f'epoch {ep} training_cost={loss_tr}, training_error={err_tr}, '
+            f'dev_error={err_dev}, test_error={err_te}, learning_rate={lr_ep}, '
+            f'execution_time(s)={end_epoch - start_epoch}')
 
     post_file.close()
     res_file.close()
