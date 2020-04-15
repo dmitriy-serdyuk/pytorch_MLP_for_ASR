@@ -79,9 +79,9 @@ def load_data(options):
     tr_fea_scp = options.tr_fea_scp.split(',')
     batch_size = int(options.batch_size)
 
-    tr_fea = np.concatenate([np.open(f'dataset_tr_{chunk_id}.npz')['fea']
+    tr_fea = np.concatenate([np.load(f'dataset_tr_{chunk_id}.npz')['fea']
                              for chunk_id in range(len(tr_fea_scp))], 0)
-    tr_lab = np.concatenate([np.open(f'dataset_tr_{chunk_id}.npz')['lab']
+    tr_lab = np.concatenate([np.load(f'dataset_tr_{chunk_id}.npz')['lab']
                              for chunk_id in range(len(tr_fea_scp))])
     train_dataset = TensorDataset(torch.from_numpy(tr_fea), torch.from_numpy(tr_lab))
     train_loader = DataLoader(train_dataset, batch_size=batch_size, pin_memory=True)
@@ -89,13 +89,13 @@ def load_data(options):
     num_fea = tr_fea.shape[1]
     num_out = int(tr_lab.max() - tr_lab.min() + 1)
 
-    dev_fea = np.open(f'dataset_dev.npz')['fea']
-    dev_lab = np.open(f'dataset_dev.npz')['lab']
+    dev_fea = np.load(f'dataset_dev.npz')['fea']
+    dev_lab = np.load(f'dataset_dev.npz')['lab']
     dev_dataset = TensorDataset(torch.from_numpy(dev_fea), torch.from_numpy(dev_lab))
     dev_loader = DataLoader(dev_dataset, batch_size=batch_size, pin_memory=True)
 
-    te_fea = np.open(f'dataset_te.npz')['fea']
-    te_lab = np.open(f'dataset_te.npz')['lab']
+    te_fea = np.load(f'dataset_te.npz')['fea']
+    te_lab = np.load(f'dataset_te.npz')['lab']
     test_dataset = TensorDataset(torch.from_numpy(te_fea), torch.from_numpy(te_lab))
     test_loader = DataLoader(test_dataset, batch_size=batch_size, pin_memory=True)
 
