@@ -32,7 +32,7 @@ lab_opts='ali-to-pdf'
 
 [architecture]
 hidden_dim=1024
-N_hid=4
+num_hid=4
 drop_rate=0.15
 use_batchnorm=1
 

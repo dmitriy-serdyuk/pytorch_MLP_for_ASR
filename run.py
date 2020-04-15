@@ -20,29 +20,9 @@ from os.path import expandvars
 from shutil import copyfile
 from timit_mlp.data_io import load_counts, read_opts
 from torch import optim
-from torch.utils.data import TensorDataset, DataLoader, Dataset
 
+from timit_mlp.dataset import TimitTrainSet
 from timit_mlp.model import MLP
-
-
-class TimitTestSet(Dataset):
-    def __init__(self):
-        pass
-
-
-class TimitTrainSet(TensorDataset):
-    def __init__(self):
-        with np.load('dataset_tr.npz') as file:
-            chunks = file['chunks']
-            fea = np.concatenate([file[f'fea_{chunk_id}'] for chunk_id in chunks], 0)
-            lab = np.concatenate([file[f'lab_{chunk_id}'] for chunk_id in chunks])
-        super().__init__(torch.from_numpy(fea), torch.from_numpy(lab))
-
-        self.num_fea = fea.shape[1]
-        self.num_out = int(lab.max() - lab.min() + 1)
-
-    def get_loader(self, batch_size):
-        return DataLoader(self, batch_size, shuffle=True, pin_memory=True)
 
 
 def main():
@@ -81,7 +61,7 @@ def main():
 
     net = MLP(input_dim=train_dataset.num_fea,
               num_classes=train_dataset.num_out,
-              **options.architecture)
+              options=options.architecture)
     net.to(options.device)
     optimizer = optim.SGD(net.parameters(), lr=lr)
 

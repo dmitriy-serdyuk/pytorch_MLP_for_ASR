@@ -5,10 +5,10 @@ from torch.nn import functional as F
 
 
 class MLP(nn.Module):
-    def __init__(self, input_dim, hidden_dim, N_hid, drop_rate, use_batchnorm, num_classes):
+    def __init__(self, input_dim, options, num_classes):
         super(MLP, self).__init__()
-        self.N_hid = N_hid
-        self.use_batchnorm = use_batchnorm
+        self.num_hid = options.num_hid
+        self.use_batchnorm = options.use_batchnorm
 
         # list initialization
         self.hidden = nn.ModuleList([])
@@ -17,17 +17,17 @@ class MLP(nn.Module):
         self.criterion = nn.CrossEntropyLoss()
 
         curr_in_dim = input_dim
-        for i in range(N_hid):
-            fc = nn.Linear(curr_in_dim, hidden_dim)
+        for i in range(self.num_hid):
+            fc = nn.Linear(curr_in_dim, options.hidden_dim)
             fc.weight = torch.nn.Parameter(
-                torch.Tensor(hidden_dim, curr_in_dim).uniform_(-np.sqrt(0.01 / (curr_in_dim + hidden_dim)),
-                                                               np.sqrt(0.01 / (curr_in_dim + hidden_dim))))
-            fc.bias = torch.nn.Parameter(torch.zeros(hidden_dim))
-            curr_in_dim = hidden_dim
+                torch.Tensor(options.hidden_dim, curr_in_dim).uniform_(-np.sqrt(0.01 / (curr_in_dim + hidden_dim)),
+                                                                       np.sqrt(0.01 / (curr_in_dim + hidden_dim))))
+            fc.bias = torch.nn.Parameter(torch.zeros(options.hidden_dim))
+            curr_in_dim = options.hidden_dim
             self.hidden.append(fc)
-            self.droplay.append(nn.Dropout(p=drop_rate))
-            if use_batchnorm:
-                self.bnlay.append(nn.BatchNorm1d(hidden_dim, momentum=0.05))
+            self.droplay.append(nn.Dropout(p=options.drop_rate))
+            if self.use_batchnorm:
+                self.bnlay.append(nn.BatchNorm1d(options.hidden_dim, momentum=0.05))
 
         self.fco = nn.Linear(curr_in_dim, num_classes)
         self.fco.weight = torch.nn.Parameter(torch.zeros(num_classes, curr_in_dim))
@@ -35,7 +35,7 @@ class MLP(nn.Module):
 
     def forward(self, x, lab):
         out = x
-        for i in range(self.N_hid):
+        for i in range(self.num_hid):
             fc = self.hidden[i]
             drop = self.droplay[i]
 
