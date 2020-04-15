@@ -23,7 +23,7 @@ from shutil import copyfile
 from data_io import load_chunk, load_counts, read_opts
 from torch import optim
 from torch.autograd import Variable
-from torch.utils.data import TensorDataset
+from torch.utils.data import TensorDataset, DataLoader
 
 
 class MLP(nn.Module):
@@ -75,27 +75,31 @@ class MLP(nn.Module):
         return loss, err, pout, pred
 
 
-def dump_features(options):
-    # Dump features
-    for chunk_id, scp in enumerate(options.tr_fea_scp.split(',')):
-        # Reading training chunk
-        _, tr_set, _ = load_chunk(
-            scp, options.tr_fea_opts, options.tr_lab_folder, options.tr_lab_opts,
-            int(options.cw_left), int(options.cw_right), -1)
-        np.save(f'features_{chunk_id}.npy', tr_set)
+def load_data(options):
+    tr_fea_scp = options.tr_fea_scp.split(',')
+    batch_size = int(options.batch_size)
 
-    te_names, te_set, te_end_index = load_chunk(
-        options.te_fea_scp, options.te_fea_opts, options.te_lab_folder,
-        options.te_lab_opts, int(options.cw_left), int(options.cw_right), -1)
-    np.savez(f'features_te.npz',
-             names=te_names, data=te_set, end_index=te_end_index)
+    tr_fea = np.concatenate([np.open(f'dataset_tr_{chunk_id}.npz')['fea']
+                             for chunk_id in range(len(tr_fea_scp))], 0)
+    tr_lab = np.concatenate([np.open(f'dataset_tr_{chunk_id}.npz')['lab']
+                             for chunk_id in range(len(tr_fea_scp))])
+    train_dataset = TensorDataset(torch.from_numpy(tr_fea), torch.from_numpy(tr_lab))
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, pin_memory=True)
 
-    dev_names, dev_set, dev_end_index = load_chunk(
-        options.dev_fea_scp, options.dev_fea_opts, options.dev_lab_folder,
-        options.dev_lab_opts,
-        int(options.cw_left), int(options.cw_right), -1)
-    np.savez(f'features_dev.npz',
-             names=dev_names, data=dev_set, end_index=dev_end_index)
+    num_fea = tr_fea.shape[1]
+    num_out = int(tr_lab.max() - tr_lab.min() + 1)
+
+    dev_fea = np.open(f'dataset_dev.npz')['fea']
+    dev_lab = np.open(f'dataset_dev.npz')['lab']
+    dev_dataset = TensorDataset(torch.from_numpy(dev_fea), torch.from_numpy(dev_lab))
+    dev_loader = DataLoader(dev_dataset, batch_size=batch_size, pin_memory=True)
+
+    te_fea = np.open(f'dataset_te.npz')['fea']
+    te_lab = np.open(f'dataset_te.npz')['lab']
+    test_dataset = TensorDataset(torch.from_numpy(te_fea), torch.from_numpy(te_lab))
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, pin_memory=True)
+
+    return train_loader, dev_loader, test_loader, num_fea, num_out
 
 
 def main():
@@ -137,7 +141,12 @@ def main():
     # Creating the res file
     res_file = open(options.out_folder + '/results.res', "w")
 
-    dump_features(options)
+    train_loader, dev_loader, test_loader, num_fea, num_out = load_data(options)
+
+    net = MLP(num_fea, hidden_dim, N_hid, drop_rate, use_batchnorm, num_out)
+    if use_cuda:
+        net.cuda()
+    optimizer = optim.SGD(net.parameters(), lr=lr)
 
     for ep in range(1, N_ep + 1):
         # ---TRAINING LOOP---#
@@ -147,96 +156,22 @@ def main():
         N_ex_tr_tot = 0
         start_epoch = timeit.default_timer()
 
-        # Processing training chunks
-        for chunk_id in range(len(tr_fea_scp)):
-            seed = seed + 100
-
-            # Reading training chunk
-            tr_set = np.load(f'features_{chunk_id}.npy')
-
-            if not save_gpumem:
-                tr_set = torch.from_numpy(tr_set).float().cuda()
-            else:
-                tr_set = torch.from_numpy(tr_set).float()
-
-                # Computing training examples and batches
-            N_ex_tr = tr_set.shape[0]
-            N_ex_tr_tot = N_ex_tr_tot + N_ex_tr
-
-            n_train_batches = N_ex_tr // batch_size
-            n_train_batches_tot = n_train_batches_tot + n_train_batches
-
-            beg_batch = 0
-            end_batch = batch_size
-
-            if ep == 1 and chunk_id == 0:
-                # Initialization of the MLP
-                N_fea = tr_set.shape[1] - 1
-                N_out = int(tr_set[:, N_fea].max() - tr_set[:, N_fea].min() + 1)
-                net = MLP(N_fea, hidden_dim, N_hid, drop_rate, use_batchnorm, N_out)
-
-                # Loading model into the cuda device
-                if use_cuda:
-                    net.cuda()
-
-                    # Optimizer initialization
-                optimizer = optim.SGD(net.parameters(), lr=lr)
-
-                # Loading Dev data
-                dev_dataset = np.load('features_dev.npz')
-                dev_name = dev_dataset['names']
-                dev_set = dev_dataset['data']
-                dev_end_index = dev_dataset['end_index']
-
-                if not save_gpumem:
-                    dev_set = torch.from_numpy(dev_set).float().cuda()
-                else:
-                    dev_set = torch.from_numpy(dev_set).float()
-
-                # Loading Test data
-                te_dataset = np.load('features_te.npz')
-                te_name = te_dataset['names']
-                te_set = te_dataset['data']
-                te_end_index = te_dataset['end_index']
-
-                if not save_gpumem:
-                    te_set = torch.from_numpy(te_set).float().cuda()
-                else:
-                    te_set = torch.from_numpy(te_set).float()
-
+        for inp, lab in train_loader:
             net.train()
-            # Processing trainibg batches
-            for i in range(n_train_batches):
+            if use_cuda:
+                inp = inp.cuda()
+                lab = lab.cuda()
+            optimizer.zero_grad()
 
-                # features and labels for batch i
-                inp = Variable(tr_set[beg_batch:end_batch, 0:N_fea])
-                lab = Variable(tr_set[beg_batch:end_batch, N_fea])
+            loss, err, pout, pred = net(inp, lab)
+            loss.backward()
+            optimizer.step()
 
-                if save_gpumem and use_cuda:
-                    inp = inp.cuda()
-                    lab = lab.cuda()
-
-                # free the gradient buffer
-                optimizer.zero_grad()
-
-                # Forward phase
-                loss, err, pout, pred = net(inp, lab)
-
-                # Gradient computation
-                loss.backward()
-
-                # updating parameters
-                optimizer.step()
-
-                # Loss accumulation
-                loss_sum = loss_sum + loss.data
-                err_sum = err_sum + err.data
-
-                # update it to the next batch
-                beg_batch = end_batch
-                end_batch = beg_batch + batch_size
-
-            del tr_set
+            # Loss accumulation
+            loss_sum = loss_sum + loss.item()
+            err_sum = err_sum + err.item()
+            n_train_batches_tot += 1
+            N_ex_tr_tot += batch_size
 
         # Average Loss
         loss_tr = loss_sum / n_train_batches_tot
