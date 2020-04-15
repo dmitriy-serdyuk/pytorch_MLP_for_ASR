@@ -29,6 +29,8 @@ from torch.utils.data import TensorDataset
 class MLP(nn.Module):
     def __init__(self, input_dim, hidden_dim, N_hid, drop_rate, use_batchnorm, num_classes):
         super(MLP, self).__init__()
+        self.N_hid = N_hid
+        self.use_batchnorm = use_batchnorm
 
         # list initialization
         self.hidden = nn.ModuleList([])
