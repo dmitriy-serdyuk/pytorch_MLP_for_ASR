@@ -6,12 +6,15 @@ from optparse import OptionParser
 
 
 def load_dataset(fea_scp, fea_opts, lab_folder, lab_opts, left, right):
-    fea = {k: m for k, m in kaldi_io.read_mat_ark('ark:copy-feats scp:' + fea_scp + ' ark:- |' + fea_opts)}
-    lab = {k: v for k, v in kaldi_io.read_vec_int_ark(
-        'gunzip -c ' + lab_folder + '/ali*.gz | ' + lab_opts + ' ' + lab_folder + '/final.mdl ark:- ark:-|') if
-           k in fea}  # Note that I'm copying only the aligments of the loaded fea
-    fea = {k: v for k, v in fea.items() if
-           k in lab}  # This way I remove all the features without an aligment (see log file in alidir "Did not Succeded")
+    fea = {k: m for k, m
+           in kaldi_io.read_mat_ark(
+               'ark:copy-feats scp:' + fea_scp + ' ark:- |' + fea_opts)}
+    lab = {k: v for k, v
+           in kaldi_io.read_vec_int_ark(
+               'gunzip -c ' + lab_folder + '/ali*.gz | ' + lab_opts + ' ' + lab_folder + '/final.mdl ark:- ark:-|')
+           if k in fea}  # Note that I'm copying only the aligments of the loaded fea
+    fea = {k: v for k, v in fea.items()
+           if k in lab}  # This way I remove all the features without an aligment (see log file in alidir "Did not Succeded")
 
     count = 0
     end_snt = 0
@@ -33,7 +36,7 @@ def load_dataset(fea_scp, fea_opts, lab_folder, lab_opts, left, right):
 
     end_index[-1] = end_index[-1] - right
 
-    return [snt_name, fea_conc, lab_conc, end_index]
+    return snt_name, fea_conc, lab_conc, end_index
 
 
 def context_window(fea, left, right):
@@ -52,7 +55,8 @@ def context_window(fea, left, right):
 
 def load_chunk(fea_scp, fea_opts, lab_folder, lab_opts, left, right, shuffle_seed):
     # open the file
-    [data_name, data_set, data_lab, end_index] = load_dataset(fea_scp, fea_opts, lab_folder, lab_opts, left, right)
+    data_name, data_set, data_lab, end_index = load_dataset(
+        fea_scp, fea_opts, lab_folder, lab_opts, left, right)
 
     # Context window
     data_set = context_window(data_set, left, right)
@@ -74,7 +78,7 @@ def load_chunk(fea_scp, fea_opts, lab_folder, lab_opts, left, right, shuffle_see
         np.random.seed(shuffle_seed)
         np.random.shuffle(data_set)
 
-    return [data_name, data_set, end_index]
+    return data_name, data_set, end_index
 
 
 def load_counts(class_counts_file):
