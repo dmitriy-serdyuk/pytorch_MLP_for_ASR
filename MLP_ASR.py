@@ -159,8 +159,8 @@ def main():
         for inp, lab in train_loader:
             net.train()
             if use_cuda:
-                inp = inp.cuda()
-                lab = lab.cuda()
+                inp = inp.to('float').to('cuda:0')
+                lab = lab.to('long').to('cuda:0')
             optimizer.zero_grad()
 
             loss, err, pout, pred = net(inp, lab)
