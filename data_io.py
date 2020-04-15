@@ -8,13 +8,14 @@ from optparse import OptionParser
 def load_dataset(fea_scp, fea_opts, lab_folder, lab_opts, left, right):
     fea = {k: m for k, m
            in kaldi_io.read_mat_ark(
-               'ark:copy-feats scp:' + fea_scp + ' ark:- |' + fea_opts)}
+               f'ark:copy-feats scp:{fea_scp} ark:- |{fea_opts}')}
     lab = {k: v for k, v
            in kaldi_io.read_vec_int_ark(
-               'gunzip -c ' + lab_folder + '/ali*.gz | ' + lab_opts + ' ' + lab_folder + '/final.mdl ark:- ark:-|')
-           if k in fea}  # Note that I'm copying only the aligments of the loaded fea
+               f'gunzip -c {lab_folder}/ali*.gz | {lab_opts} {lab_folder}/final.mdl ark:- ark:-|')
+           if k in fea}  # Note that I'm copying only the alignments of the loaded fea
+    # This way I remove all the features without an alignment (see log file in alidir "Did not Succeded")
     fea = {k: v for k, v in fea.items()
-           if k in lab}  # This way I remove all the features without an aligment (see log file in alidir "Did not Succeded")
+           if k in lab}  
 
     count = 0
     end_snt = 0
