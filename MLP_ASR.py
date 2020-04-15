@@ -54,11 +54,11 @@ class MLP(nn.Module):
 
     def forward(self, x, lab):
         out = x
-        for i in range(N_hid):
+        for i in range(self.N_hid):
             fc = self.hidden[i]
             drop = self.droplay[i]
 
-            if use_batchnorm:
+            if self.use_batchnorm:
                 batchnorm = self.bnlay[i]
                 out = drop(F.relu(batchnorm(fc(out))))
             else:
@@ -128,6 +128,16 @@ def main():
     # Creating the res file
     res_file = open(options.out_folder + '/results.res', "w")
 
+    # Dump features
+    for chunk_id, scp in enumerate(tr_fea_scp):
+        seed = seed + 100
+
+        # Reading training chunk
+        _, tr_set, _ = load_chunk(
+            scp, tr_fea_opts, tr_lab_folder, tr_lab_opts,
+            left, right, seed)
+        np.savez(f'features_{chunk_id}.npz', tr_set)
+
     for ep in range(1, N_ep + 1):
 
         # ---TRAINING LOOP---#
@@ -138,15 +148,14 @@ def main():
         start_epoch = timeit.default_timer()
 
         # Processing training chunks
-        for chunk in range(len(tr_fea_scp)):
+        for chunk_id in range(len(tr_fea_scp)):
 
             seed = seed + 100
 
             # Reading training chunk
-            train_name, tr_set, tr_end_index_tr = load_chunk(tr_fea_scp[chunk], tr_fea_opts, tr_lab_folder, tr_lab_opts,
-                                                               left, right, seed)
+            tr_set = np.load(f'features_{chunk_id}.npz')
 
-            if not (save_gpumem):
+            if not save_gpumem:
                 tr_set = torch.from_numpy(tr_set).float().cuda()
             else:
                 tr_set = torch.from_numpy(tr_set).float()
@@ -161,7 +170,7 @@ def main():
             beg_batch = 0
             end_batch = batch_size
 
-            if ep == 1 and chunk == 0:
+            if ep == 1 and chunk_id == 0:
                 # Initialization of the MLP
                 N_fea = tr_set.shape[1] - 1
                 N_out = int(tr_set[:, N_fea].max() - tr_set[:, N_fea].min() + 1)
@@ -175,8 +184,9 @@ def main():
                 optimizer = optim.SGD(net.parameters(), lr=lr)
 
                 # Loading Dev data
-                dev_name, dev_set, dev_end_index = load_chunk(dev_fea_scp, dev_fea_opts, dev_lab_folder, dev_lab_opts,
-                                                                left, right, -1)
+                dev_name, dev_set, dev_end_index = load_chunk(
+                    dev_fea_scp, dev_fea_opts, dev_lab_folder, dev_lab_opts,
+                    left, right, -1)
 
                 if not save_gpumem:
                     dev_set = torch.from_numpy(dev_set).float().cuda()
@@ -184,10 +194,11 @@ def main():
                     dev_set = torch.from_numpy(dev_set).float()
 
                 # Loading Test data
-                te_name, te_set, te_end_index = load_chunk(te_fea_scp, te_fea_opts, te_lab_folder, te_lab_opts, left,
-                                                             right, -1)
+                te_name, te_set, te_end_index = load_chunk(
+                    te_fea_scp, te_fea_opts, te_lab_folder, te_lab_opts, left,
+                    right, -1)
 
-                if not (save_gpumem):
+                if not save_gpumem:
                     te_set = torch.from_numpy(te_set).float().cuda()
                 else:
                     te_set = torch.from_numpy(te_set).float()
@@ -224,7 +235,7 @@ def main():
                 beg_batch = end_batch
                 end_batch = beg_batch + batch_size
 
-            del train_name, tr_set, tr_end_index_tr
+            del tr_set
 
         # Average Loss
         loss_tr = loss_sum / n_train_batches_tot
