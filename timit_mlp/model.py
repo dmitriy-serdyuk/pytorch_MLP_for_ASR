@@ -9,6 +9,7 @@ class MLP(nn.Module):
         super(MLP, self).__init__()
         self.num_hid = options.num_hid
         self.use_batchnorm = options.use_batchnorm
+        hidden_dim = options.hidden_dim
 
         # list initialization
         self.hidden = nn.ModuleList([])
@@ -22,12 +23,12 @@ class MLP(nn.Module):
             fc.weight = torch.nn.Parameter(
                 torch.Tensor(options.hidden_dim, curr_in_dim).uniform_(-np.sqrt(0.01 / (curr_in_dim + hidden_dim)),
                                                                        np.sqrt(0.01 / (curr_in_dim + hidden_dim))))
-            fc.bias = torch.nn.Parameter(torch.zeros(options.hidden_dim))
-            curr_in_dim = options.hidden_dim
+            fc.bias = torch.nn.Parameter(torch.zeros(hidden_dim))
+            curr_in_dim = hidden_dim
             self.hidden.append(fc)
             self.droplay.append(nn.Dropout(p=options.drop_rate))
             if self.use_batchnorm:
-                self.bnlay.append(nn.BatchNorm1d(options.hidden_dim, momentum=0.05))
+                self.bnlay.append(nn.BatchNorm1d(hidden_dim, momentum=0.05))
 
         self.fco = nn.Linear(curr_in_dim, num_classes)
         self.fco.weight = torch.nn.Parameter(torch.zeros(num_classes, curr_in_dim))
