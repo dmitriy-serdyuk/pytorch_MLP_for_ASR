@@ -21,7 +21,7 @@ from shutil import copyfile
 from timit_mlp.data_io import load_counts, read_opts
 from torch import optim
 
-from timit_mlp.dataset import TimitTrainSet, load_set
+from timit_mlp.dataset import TimitTrainSet, TimitTestSet, load_set
 from timit_mlp.model import MLP
 
 
@@ -59,6 +59,12 @@ def main():
     train_dataset = TimitTrainSet()
     train_loader = train_dataset.get_loader(batch_size)
 
+    dev_dataset = TimitTestSet('dev')
+    dev_loader = dev_dataset.get_loader()
+
+    test_dataset = TimitTestSet('te')
+    test_loader = test_dataset.get_loader()
+
     net = MLP(input_dim=train_dataset.num_fea,
               num_classes=train_dataset.num_out,
               options=options.architecture)
@@ -95,28 +101,24 @@ def main():
 
         end_epoch = timeit.default_timer()
 
-        dev_name, dev_fea, dev_lab, dev_end_index = load_set('dataset_dev.npz')
         # ---EVALUATION OF DEV---#
-        beg_snt = 0
-        err_sum = 0.0
-        loss_sum = 0.0
-        n_dev_snt = len(dev_name)
+        errs = []
+        losses = []
+        lens = []
         net.eval()
         # Reading dev-set sentence by sentence
-        for i in range(n_dev_snt):
-            end_snt = dev_end_index[i]
-            inp = dev_fea[beg_snt:end_snt].to(options.device, dtype=torch.float)
-            lab = dev_lab[beg_snt:end_snt].to(options.device)
+        for _, fea, lab in dev_loader:
+            inp = fea.to(options.device, dtype=torch.float)
+            lab = lab.to(options.device)
 
             with torch.no_grad():
                 loss, err, pout, pred = net(inp, lab)
-            loss_sum = loss_sum + loss.item()
-            err_sum = err_sum + err.item()
+            losses.append(loss.item())
+            errs.append(err.item())
+            lens.append(inp.shape[0])
 
-            beg_snt = dev_end_index[i]
-
-        loss_dev = loss_sum / n_dev_snt
-        err_dev = (err_sum / dev_fea.shape[0]).cpu().numpy()
+        loss_dev = sum(losses) / len(losses)
+        err_dev = (sum(errs) / sum(lens)).cpu().numpy()
 
         # Learning rate annealing (if improvement on dev-set is small)
         lr_ep = lr
@@ -134,12 +136,9 @@ def main():
             param_group['lr'] = lr
 
         # ---EVALUATION OF TEST---#
-        te_name, te_fea, te_lab, te_end_index = load_set('dataset_dev.npz')
-
         beg_snt = 0
         err_sum = 0.0
         loss_sum = 0.0
-        n_te_snt = len(te_name)
         net.eval()
 
         if ep == num_epochs:
@@ -147,17 +146,16 @@ def main():
             post_file = kaldi_io.open_or_fd(options.out_folder + '/pout_test.ark', 'wb')
             counts = load_counts(count_file)
 
-        for i in range(n_te_snt):
-            end_snt = te_end_index[i]
-            inp = te_fea[beg_snt:end_snt].to(options.device, dtype=torch.float)
-            lab = te_lab[beg_snt:end_snt].to(options.device)
+        for name, fea, lab in test_loader:
+            inp = fea.to(options.device, dtype=torch.float)
+            lab = lab.to(options.device)
 
             with torch.no_grad():
                 loss, err, pout, pred = net(inp, lab)
 
             if ep == num_epochs:
                 # writing the ark containing the normalized posterior probabilities (needed for kaldi decoding)
-                kaldi_io.write_mat(post_file, pout.data.cpu().numpy() - np.log(counts / np.sum(counts)), te_name[i])
+                kaldi_io.write_mat(post_file, pout.data.cpu().numpy() - np.log(counts / np.sum(counts)), name)
 
             loss_sum = loss_sum + loss.data
             err_sum = err_sum + err.data
