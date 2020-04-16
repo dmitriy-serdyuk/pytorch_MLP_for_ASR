@@ -119,7 +119,7 @@ def main():
         N_ex_tr_tot = 0
         start_epoch = timeit.default_timer()
 
-        for inp, lab in train_loader:
+        for _, inp, lab in train_loader:
             net.train()
             inp = inp.to(options.device, dtype=torch.float)
             lab = lab.to(options.device)

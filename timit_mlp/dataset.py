@@ -1,7 +1,6 @@
 import numpy as np
-import torch
 from bisect import bisect
-from torch.utils.data import TensorDataset, DataLoader, Dataset, BatchSampler
+from torch.utils.data import DataLoader, Dataset, BatchSampler
 
 
 def load_set(name):
@@ -10,7 +9,11 @@ def load_set(name):
         names = np.concatenate([file[f'names_{chunk_id}'] for chunk_id in chunks])
         fea = np.concatenate([file[f'fea_{chunk_id}'] for chunk_id in chunks], 0)
         lab = np.concatenate([file[f'lab_{chunk_id}'] for chunk_id in chunks])
-        end_index = np.concatenate([file[f'end_index_{chunk_id}'] for chunk_id in chunks])
+        end_indexes = [file[f'end_index_{chunk_id}'] for chunk_id in chunks]
+        end_indexes_lens = [len(e) for e in end_indexes]
+        shifts = [0] + list(np.cumsum(end_indexes_lens))[:-1]
+        end_index = np.concatenate(
+            [end_ind + shift for shift, end_ind in zip(shifts, end_indexes)])
     return names, fea, lab, end_index
 
 
