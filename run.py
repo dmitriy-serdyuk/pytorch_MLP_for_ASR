@@ -183,6 +183,22 @@ def main():
     # cd kaldi_decoding_scripts
     # ./decode_dnn_TIMIT.sh /home/mirco/kaldi-trunk/egs/timit/s5/exp/tri3/graph /home/mirco/kaldi-trunk/egs/timit/s5/data/test/ /home/mirco/kaldi-trunk/egs/timit/s5/exp/dnn4_pretrain-dbn_dnn_ali /home/mirco/pytorch_exp/TIMIT_MLP_fmllr/decoding_test cat /home/mirco/pytorch_exp/TIMIT_MLP_fmllr/pout_test.ark
 
+    decode('dev', output_dir=options.out_folder)
+    decode('te', output_dir=options.out_folder)
+
+
+def decode(subset, output_dir):
+    import subprocess
+    subprocess.Popen(
+        f'./decode_dnn_TIMIT.sh '
+        f'$KALDI_ROOT/egs/timit/s5/exp/tri3/graph '
+        f'$KALDI_ROOT/egs/timit/s5/data/{subset}/ '
+        f'$KALDI_ROOT/egs/timit/s5/exp/dnn4_pretrain-dbn_dnn_ali '
+        f'../{output_dir}/decoding_{subset} '
+        f'"cat ../{output_dir}/{subset}/pout_test.ark"',
+        cwd='./kaldi_decoding_scripts/',
+        shell=True)
+
 
 if __name__ == "__main__":
     main()
