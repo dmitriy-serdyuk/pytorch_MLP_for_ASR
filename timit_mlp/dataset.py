@@ -10,7 +10,7 @@ def load_set(name):
         fea = np.concatenate([file[f'fea_{chunk_id}'] for chunk_id in chunks], 0)
         lab = np.concatenate([file[f'lab_{chunk_id}'] for chunk_id in chunks])
         end_indexes = [file[f'end_index_{chunk_id}'] for chunk_id in chunks]
-        end_indexes_lens = [len(e) for e in end_indexes]
+        end_indexes_lens = [e[-1] for e in end_indexes]
         shifts = [0] + list(np.cumsum(end_indexes_lens))[:-1]
         end_index = np.concatenate(
             [end_ind + shift for shift, end_ind in zip(shifts, end_indexes)])
