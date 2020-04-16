@@ -90,7 +90,10 @@ $cmd $dir/log/class_count.log \
 
 finalfeats="ark,s,cs:$featstring |"
 $cmd JOB=1:$nj $dir/log/decode.JOB.log \
-  latgen-faster-mapped --min-active=$min_active --max-active=$max_active --max-mem=$max_mem --beam=$beam --lattice-beam=$latbeam --acoustic-scale=$acwt --allow-partial=true --word-symbol-table=$graphdir/words.txt $alidir/final.mdl $graphdir/HCLG.fst "$finalfeats" "ark:|gzip -c > $dir/lat.JOB.gz"
+  latgen-faster-mapped --min-active=$min_active --max-active=$max_active \
+  --max-mem=$max_mem --beam=$beam --lattice-beam=$latbeam --acoustic-scale=$acwt \
+  --allow-partial=true --word-symbol-table=$graphdir/words.txt \
+  $alidir/final.mdl $graphdir/HCLG.fst "$finalfeats" "ark:|gzip -c > $dir/lat.JOB.gz"
 
 # Copy the source model in order for scoring
 cp $alidir/final.mdl $srcdir

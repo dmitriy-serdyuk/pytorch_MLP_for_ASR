@@ -25,7 +25,12 @@ from timit_mlp.dataset import TimitTrainSet, TimitTestSet
 from timit_mlp.model import MLP
 
 
-def test(net, loader, device, write_posts=False, out_folder=None, count_file=None):
+def test(net, loader, device, *, write_posts=False, out_folder=None, count_file=None):
+    if not write_posts:
+        assert out_folder is None and count_file is None
+    if write_posts:
+        assert out_folder is not None and count_file is not None
+
     if write_posts:
         # set folder for posteriors ark
         post_file = kaldi_io.open_or_fd(out_folder + '/pout_test.ark', 'wb')
@@ -45,14 +50,17 @@ def test(net, loader, device, write_posts=False, out_folder=None, count_file=Non
 
         if write_posts:
             # writing the ark containing the normalized posterior probabilities (needed for kaldi decoding)
-            kaldi_io.write_mat(post_file, pout.data.cpu().numpy() - np.log(counts / np.sum(counts)), name[0])
+            kaldi_io.write_mat(
+                post_file,
+                pout.data.to('cpu').numpy() - np.log(counts / np.sum(counts)),
+                name[0])
 
         losses.append(loss.item())
         errs.append(err.item())
         lens.append(inp.shape[0])
 
     avg_loss = sum(losses) / len(losses)
-    avg_err = (sum(errs) / sum(lens))
+    avg_err = sum(errs) / sum(lens)
 
     if write_posts:
         post_file.close()
@@ -134,7 +142,10 @@ def main():
         end_epoch = timeit.default_timer()
 
         # ---EVALUATION OF DEV---#
-        loss_dev, err_dev = test(net, dev_loader, options.device)
+        loss_dev, err_dev = test(
+            net, dev_loader, options.device,
+            write_posts=True,
+            out_folder=options.out_folder + '/dev/', count_file=options.data.count_file)
 
         # Learning rate annealing (if improvement on dev-set is small)
         lr_ep = lr
