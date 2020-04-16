@@ -31,8 +31,7 @@ lab_folder='$KALDI_ROOT/egs/timit/s5/exp/tri3_ali_test'
 lab_opts='ali-to-pdf'
 
 [architecture]
-hidden_dim=1024
-num_hid=4
+hidden_dims=[1024, 1024, 1024, 1024]
 drop_rate=0.15
 use_batchnorm=1
 

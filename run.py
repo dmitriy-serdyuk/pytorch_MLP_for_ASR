@@ -165,7 +165,7 @@ def main():
         # ---EVALUATION OF TEST---#
         loss_te, err_te = test(
             net, test_loader, options.device, write_posts=ep == num_epochs,
-            out_folder=options.out_folder, count_file=options.data.count_file)
+            out_folder=options.out_folder + '/te/', count_file=options.data.count_file)
 
         print(
             f'epoch {ep} training_cost={loss_tr}, training_error={err_tr}, '
