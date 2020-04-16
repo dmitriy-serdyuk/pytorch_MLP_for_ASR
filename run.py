@@ -144,8 +144,10 @@ def main():
         # ---EVALUATION OF DEV---#
         loss_dev, err_dev = test(
             net, dev_loader, options.device,
-            write_posts=True,
-            out_folder=options.out_folder + '/dev/', count_file=options.data.count_file)
+            **(dict(write_posts=True,
+                    out_folder=options.out_folder + '/te/',
+                    count_file=options.data.count_file)
+               if ep == num_epochs else {}))
 
         # Learning rate annealing (if improvement on dev-set is small)
         lr_ep = lr
@@ -164,8 +166,11 @@ def main():
 
         # ---EVALUATION OF TEST---#
         loss_te, err_te = test(
-            net, test_loader, options.device, write_posts=ep == num_epochs,
-            out_folder=options.out_folder + '/te/', count_file=options.data.count_file)
+            net, test_loader, options.device,
+            **(dict(write_posts=True,
+                    out_folder=options.out_folder + '/te/',
+                    count_file=options.data.count_file)
+               if ep == num_epochs else {}))
 
         print(
             f'epoch {ep} training_cost={loss_tr}, training_error={err_tr}, '
