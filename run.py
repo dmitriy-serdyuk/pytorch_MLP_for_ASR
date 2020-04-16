@@ -21,7 +21,10 @@ from shutil import copyfile
 from timit_mlp.data_io import load_counts, read_opts
 from torch import optim
 
-from timit_mlp.dataset import TimitSet
+from olympus.datasets import Dataset, SplitDataset, DataLoader
+from olympus.utils import option, new_seed
+
+from timit_mlp.dataset import TimitTestDataSampler
 from timit_mlp.model import MLP
 
 
@@ -98,17 +101,22 @@ def main():
 
     batch_size = options.optimization.batch_size
 
-    train_dataset = TimitSet('tr')
-    train_loader = train_dataset.get_train_loader(batch_size)
+    dataset = Dataset('timit', path=f'{options.out_folder}/../')
+    splits = SplitDataset(dataset, split_method='original')
+    loader = DataLoader(
+        splits,
+        sampler_seed=new_seed(sampler=1),
+        batch_size=batch_size
+    )
 
-    dev_dataset = TimitSet('dev')
-    dev_loader = dev_dataset.get_test_loader()
+    train_loader = loader.train()
+    dev_loader = loader.valid(batch_sampler=TimitTestDataSampler())
+    test_loader = loader.test(batch_sampler=TimitTestDataSampler())
 
-    test_dataset = TimitSet('te')
-    test_loader = test_dataset.get_test_loader()
+    input_size, num_classes = loader.get_shapes()
 
-    net = MLP(input_dim=train_dataset.num_fea,
-              num_classes=train_dataset.num_out,
+    net = MLP(input_dim=input_size,
+              num_classes=num_classes,
               options=options.architecture)
     net.to(options.device)
     optimizer = optim.SGD(net.parameters(), lr=lr)
@@ -170,7 +178,7 @@ def main():
         loss_te, err_te = test(
             net, test_loader, options.device,
             **(dict(write_posts=True,
-                    out_folder=options.out_folder + '/te/',
+                    out_folder=options.out_folder + '/test/',
                     count_file=options.data.count_file)
                if ep == num_epochs else {}))
 
@@ -187,7 +195,7 @@ def main():
     torch.save(net.state_dict(), expandvars(options.out_folder) + '/model.pkl')
 
     decode('dev', output_dir=options.out_folder)
-    decode('te', output_dir=options.out_folder)
+    decode('test', output_dir=options.out_folder)
 
 
 def decode(subset, output_dir):
