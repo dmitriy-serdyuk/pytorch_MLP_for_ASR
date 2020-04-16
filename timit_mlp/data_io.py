@@ -1,9 +1,7 @@
 import kaldi_io
 import numpy as np
-import configparser
 import toml
 from os.path import expandvars
-from optparse import OptionParser
 from argparse import ArgumentParser, Namespace
 
 

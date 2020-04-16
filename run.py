@@ -84,6 +84,8 @@ def main():
     # Create output folder
     if not os.path.exists(options.out_folder):
         os.makedirs(options.out_folder)
+        os.makedirs(options.out_folder + '/te')
+        os.makedirs(options.out_folder + '/dev')
 
     # copy cfg file into the output folder
     copyfile(options.cfg, options.out_folder + '/conf.cfg')
