@@ -21,7 +21,7 @@ from shutil import copyfile
 from timit_mlp.data_io import load_counts, read_opts
 from torch import optim
 
-from timit_mlp.dataset import TimitTrainSet, TimitTestSet
+from timit_mlp.dataset import TimitSet
 from timit_mlp.model import MLP
 
 
@@ -96,14 +96,14 @@ def main():
 
     batch_size = options.optimization.batch_size
 
-    train_dataset = TimitTrainSet()
-    train_loader = train_dataset.get_loader(batch_size)
+    train_dataset = TimitSet('tr')
+    train_loader = train_dataset.get_train_loader(batch_size)
 
-    dev_dataset = TimitTestSet('dev')
-    dev_loader = dev_dataset.get_loader()
+    dev_dataset = TimitSet('dev')
+    dev_loader = dev_dataset.get_test_loader()
 
-    test_dataset = TimitTestSet('te')
-    test_loader = test_dataset.get_loader()
+    test_dataset = TimitSet('te')
+    test_loader = test_dataset.get_test_loader()
 
     net = MLP(input_dim=train_dataset.num_fea,
               num_classes=train_dataset.num_out,
@@ -183,10 +183,6 @@ def main():
     res_file.close()
     # Model Saving
     torch.save(net.state_dict(), expandvars(options.out_folder) + '/model.pkl')
-
-    # If everything went fine, you can run the kaldi phone-loop decoder:
-    # cd kaldi_decoding_scripts
-    # ./decode_dnn_TIMIT.sh /home/mirco/kaldi-trunk/egs/timit/s5/exp/tri3/graph /home/mirco/kaldi-trunk/egs/timit/s5/data/test/ /home/mirco/kaldi-trunk/egs/timit/s5/exp/dnn4_pretrain-dbn_dnn_ali /home/mirco/pytorch_exp/TIMIT_MLP_fmllr/decoding_test cat /home/mirco/pytorch_exp/TIMIT_MLP_fmllr/pout_test.ark
 
     decode('dev', output_dir=options.out_folder)
     decode('te', output_dir=options.out_folder)

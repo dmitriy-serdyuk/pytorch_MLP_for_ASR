@@ -14,24 +14,15 @@ def load_set(name):
     return names, fea, lab, end_index
 
 
-class TimitTrainSet(TensorDataset):
-    def __init__(self):
-        _, fea, lab, _ = load_set('dataset_tr.npz')
-        super().__init__(torch.from_numpy(fea), torch.from_numpy(lab))
-
-        self.num_fea = fea.shape[1]
-        self.num_out = int(lab.max() - lab.min() + 1)
-
-    def get_loader(self, batch_size):
-        return DataLoader(self, batch_size, shuffle=True, pin_memory=True)
-
-
-class TimitTestSet(Dataset):
+class TimitSet(Dataset):
     def __init__(self, subset):
         super().__init__()
         names, self.fea, self.lab, end_index = load_set(f'dataset_{subset}.npz')
         self.names = list(names)
         self.end_index = list(end_index)
+
+        self.num_fea = self.fea.shape[1]
+        self.num_out = int(self.lab.max() - self.lab.min() + 1)
 
     def __len__(self):
         return self.fea.shape[0]
@@ -40,8 +31,11 @@ class TimitTestSet(Dataset):
         name_ind = bisect(self.end_index, item)
         return self.names[name_ind], self.fea[item], self.lab[item]
 
-    def get_loader(self):
+    def get_test_loader(self):
         return DataLoader(self, batch_sampler=TimitTestDataSampler(self))
+
+    def get_train_loader(self, batch_size):
+        return DataLoader(self, batch_size, shuffle=True, pin_memory=True)
 
 
 class TimitTestDataSampler(BatchSampler):
