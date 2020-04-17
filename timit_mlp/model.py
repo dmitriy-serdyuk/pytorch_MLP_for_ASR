@@ -19,11 +19,7 @@ class MLP(nn.Module):
             fc = nn.Linear(input_dim, output_dim)
             layers.append(fc)
 
-            fc.weight = torch.nn.Parameter(
-                torch.Tensor(output_dim, input_dim).uniform_(
-                    -np.sqrt(0.01 / (input_dim + output_dim)),
-                    np.sqrt(0.01 / (input_dim + output_dim))))
-            fc.bias = torch.nn.Parameter(torch.zeros(output_dim))
+            fc.weight.name = 'glorot'
 
             if self.use_batchnorm:
                 layers.append(nn.BatchNorm1d(output_dim, momentum=0.05))
@@ -32,9 +28,7 @@ class MLP(nn.Module):
             layers.append(nn.Dropout(p=options.drop_rate))
 
         fco = nn.Linear(output_dim, num_classes)
-
-        fco.weight = torch.nn.Parameter(torch.zeros(num_classes, output_dim))
-        fco.bias = torch.nn.Parameter(torch.zeros(num_classes))
+        fco.weight.name = 'zeroes'
 
         layers.append(fco)
 

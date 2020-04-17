@@ -1,6 +1,6 @@
 import numpy as np
 from bisect import bisect
-from torch.utils.data import DataLoader, Dataset, BatchSampler
+from torch.utils.data import DataLoader, Dataset
 
 
 def load_set(name):
@@ -41,9 +41,10 @@ class TimitSet(Dataset):
         return DataLoader(self, batch_size, shuffle=True, pin_memory=True)
 
 
-class TimitTestDataSampler(BatchSampler):
-    def __init__(self, dataset):
+class TimitTestDataSampler:
+    def __init__(self, dataset, seed):
         self.dataset = dataset
+        self.seed = seed
 
     def __len__(self):
         return len(self.dataset.names)
